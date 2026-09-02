@@ -21,6 +21,8 @@ export type PlatformPaths = {
 
 export type ModelEntry = {
   id: string;
+  /** Gateway model IDs that can back this catalog entry, in preference order. */
+  gatewayIds?: readonly string[];
   surface: Surface;
   label: string;
   roles: Partial<Record<MediaRole, number>>;

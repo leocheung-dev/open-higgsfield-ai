@@ -6,7 +6,8 @@
     "dev": "next dev --hostname 127.0.0.1 --port 3000",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 3000",
-    "brand": "node scripts/build-brand-assets.mjs"
+    "brand": "node scripts/build-brand-assets.mjs",
+    "test": "tsx --test src/generation/gateway-models.test.ts"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.10",
@@ -19,6 +20,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.2"
   }
 }

@@ -116,11 +116,7 @@ export function createPlatformClient(options: PlatformClientOptions) {
     meta: SubmitMeta,
   ): Promise<QueuedGeneration> {
     if (!isModelId(meta.model)) throw new PlatformError(400, { detail: "Invalid model" });
-    const actualModel =
-      meta.model === "gpt-image-2" && process.env.OPENAI_MODEL
-        ? process.env.OPENAI_MODEL
-        : meta.model;
-    if (!isModelId(actualModel)) throw new PlatformError(500, { detail: "Invalid OPENAI_MODEL" });
+    const actualModel = meta.model;
 
     const refs = stringArray(input.image_urls);
     let payload: unknown;

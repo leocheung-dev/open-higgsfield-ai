@@ -12,7 +12,6 @@ fi
 
 export OPENAI_API_KEY="${OPENAI_API_KEY:-${openai_key:-}}"
 export OPENAI_BASE_URL="${OPENAI_BASE_URL:-${base_url:-}}"
-export OPENAI_MODEL="${OPENAI_MODEL:-gpt-image-1}"
 CUA_PORT="${PORT:-3000}"
 
 if [[ -z "$OPENAI_API_KEY" ]]; then

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { hasPlatformCredentials, submitGeneration } from "@/generation/actions";
+import { listAvailableModels, submitGeneration } from "@/generation/actions";
 import { MissingCredentialsError } from "@/generation/credentials";
 import { MODELS, getModel } from "@/generation/catalog";
 import type { Surface } from "@/generation/catalog";
@@ -178,7 +178,16 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
      recent sheets on top, and a range extends from the last one touched. */
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState<SaveProgress | null>(null);
-  const [keyConfigured, setKeyConfigured] = useState(false);
+  const [availableModelIds, setAvailableModelIds] = useState<string[] | null>(null);
+
+  const availableModels = useMemo(
+    () =>
+      availableModelIds === null
+        ? []
+        : MODELS.filter((entry) => availableModelIds.includes(entry.id)),
+    [availableModelIds],
+  );
+  const keyConfigured = availableModels.length > 0;
 
   const galleryRef = useRef<HTMLDivElement>(null);
   const rangeAnchor = useRef<number | null>(null);
@@ -219,11 +228,27 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
   }, [historyLoaded, history]);
 
   useEffect(() => {
-    void hasPlatformCredentials().then((ready) => {
-      setKeyConfigured(ready);
-      if (!ready) setError("The local Gateway is not configured. Check the server environment and restart.");
+    let live = true;
+    void listAvailableModels().then((result) => {
+      if (!live) return;
+      setAvailableModelIds(result.modelIds);
+      if (result.status === "error") {
+        setError(result.message);
+      } else if (result.modelIds.length === 0) {
+        setError("The Gateway exposes no models supported by this Studio.");
+      }
     });
+    return () => {
+      live = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (availableModels.length === 0 || availableModels.some((entry) => entry.id === modelId)) {
+      return;
+    }
+    setModel(availableModels[0]!.id);
+  }, [availableModels, modelId, setModel]);
 
   useEffect(() => {
     alive.current = true;
@@ -311,10 +336,10 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
       setView(next);
       galleryRef.current?.scrollTo({ top: 0 });
       if (CROSS_VIEWS.has(next) || next === surface) return;
-      const first = MODELS.find((entry) => entry.surface === next);
+      const first = availableModels.find((entry) => entry.surface === next);
       if (first) setModel(first.id);
     },
-    [setModel, surface],
+    [availableModels, setModel, surface],
   );
 
   /* Presses do not wait on each other. A press snapshots its own plane, opens
@@ -322,11 +347,15 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
      moment the tiles appear and any number of runs can be in flight. */
   const generate = useCallback(async () => {
     if (!keyConfigured) {
-      setError("The local Gateway is not configured. Check the server environment and restart.");
+      setError("No Gateway model is currently available for generation.");
       return;
     }
     const plane = assemblePlane();
     if (!plane.prompt.text.trim()) return;
+    if (!availableModels.some((entry) => entry.id === plane.model)) {
+      setError("The selected model is no longer available for this Gateway key.");
+      return;
+    }
 
     const entry = getModel(plane.model);
     const ratio = ratioToCss(
@@ -395,23 +424,26 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
     };
 
     await Promise.all(slots.map(runOne));
-  }, [keyConfigured, resume]);
+  }, [availableModels, keyConfigured, resume]);
 
   /* Reuse restores the whole plane the run was made from — model, its dials,
      then the words. A reuse that dropped the ratio and resolution would
      re-render a different picture from the same prompt. */
   const retry = useCallback(
     (record: RunRecord) => {
-      if (MODELS.some((entry) => entry.id === record.modelId)) {
-        setModel(record.modelId);
-        if (record.settings) setSettings(record.modelId, record.settings);
+      if (!availableModels.some((entry) => entry.id === record.modelId)) {
+        setViewerId(null);
+        setError("This run's model is no longer available for the current Gateway key.");
+        return;
       }
+      setModel(record.modelId);
+      if (record.settings) setSettings(record.modelId, record.settings);
       (record.surface === "image" ? useImagePrompt : useVideoPrompt).getState().setText(record.prompt);
       setViewerId(null);
       setError(null);
       setFocusNonce((n) => n + 1);
     },
-    [setModel, setSettings],
+    [availableModels, setModel, setSettings],
   );
 
   const toggleFavorite = useCallback((record: RunRecord) => {
@@ -645,6 +677,8 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
           <Composer
             surface={surface}
             model={model}
+            availableModels={availableModels}
+            gatewayReady={keyConfigured}
             generating={busy}
             error={error}
             focusNonce={focusNonce}

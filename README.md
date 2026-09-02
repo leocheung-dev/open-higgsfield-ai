@@ -19,6 +19,7 @@ Gateway.
 - **Free & open-source** — no studio subscription, no vendor lock-in
 - **Self-hosted** — clone it, run it, change it
 - **Server-only key** — the CUA runtime reads its Gateway key from the environment
+- **Gateway-discovered models** — the picker shows only catalog models exposed to the current key
 - **40 models** — 12 image, 28 video, one catalog, one composer
 
 ---
@@ -79,6 +80,10 @@ Next.js 16 App Router on Vercel · React 19 · plain CSS · Zustand · pnpm
 - **Server-only Gateway key.** CUA credentials are read from environment variables
   and never returned to the browser. The topbar lamp states Gateway readiness
   and whether a run is in flight.
+- **Gateway-discovered availability.** The server reads `/v1/models` with the CUA
+  credential, intersects those IDs with the local capability catalog, and sends
+  only the resulting catalog IDs to the browser. A discovery failure exposes no
+  fallback models.
 
 ---
 
@@ -123,7 +128,6 @@ protects the service.
 ```bash
 OPENAI_API_KEY=pmk_xxx
 OPENAI_BASE_URL=https://your-token-gateway.example/v1
-OPENAI_MODEL=gpt-image-1
 ```
 
 ### Commands

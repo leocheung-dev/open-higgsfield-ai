@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
-import { MODELS } from "@/generation/catalog";
 import type { ModelEntry, Surface } from "@/generation/catalog";
 
 import { swatchFor } from "./artwork";
@@ -12,11 +11,13 @@ import { CheckIcon, CloseIcon, SearchIcon } from "./icons";
 import { ModelIcon, modelIconSrc } from "./model-icon";
 
 export function ModelPicker({
+  availableModels,
   selectedId,
   surface,
   onPick,
   onClose,
 }: {
+  availableModels: readonly ModelEntry[];
   selectedId: string;
   surface: Surface;
   onPick: (model: ModelEntry) => void;
@@ -31,7 +32,7 @@ export function ModelPicker({
   }, []);
 
   const query = search.trim().toLowerCase();
-  const catalog = MODELS.filter((model) => model.surface === surface);
+  const catalog = availableModels.filter((model) => model.surface === surface);
   /* The description is searchable too: "references", "4K" and "audio" are how
      a visitor asks for a model whose name they do not remember. */
   const models = catalog.filter(
@@ -91,20 +92,26 @@ export function ModelPicker({
             <span className="ohf-picker-empty-ic">
               <SearchIcon size={15} />
             </span>
-            <span className="ohf-picker-empty-title">No model matches “{search.trim()}”</span>
-            <span className="ohf-picker-empty-hint">
-              The {SURFACE_LABELS[surface].toLowerCase()} catalog holds {catalog.length} models.
+            <span className="ohf-picker-empty-title">
+              {query ? `No model matches “${search.trim()}”` : "No Gateway model is available"}
             </span>
-            <button
-              type="button"
-              className="ohf-btn-solid"
-              onClick={() => {
-                setSearch("");
-                inputRef.current?.focus();
-              }}
-            >
-              Clear search
-            </button>
+            <span className="ohf-picker-empty-hint">
+              {query
+                ? `Search within ${catalog.length} available ${SURFACE_LABELS[surface].toLowerCase()} models.`
+                : `The Gateway did not expose a supported ${surface} model.`}
+            </span>
+            {query && (
+              <button
+                type="button"
+                className="ohf-btn-solid"
+                onClick={() => {
+                  setSearch("");
+                  inputRef.current?.focus();
+                }}
+              >
+                Clear search
+              </button>
+            )}
           </div>
         )}
 

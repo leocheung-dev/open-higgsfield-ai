@@ -48,6 +48,8 @@ function popoverWidth(id: string, model: ModelEntry): number {
 export function Composer({
   surface,
   model,
+  availableModels,
+  gatewayReady,
   generating,
   error,
   focusNonce,
@@ -60,6 +62,8 @@ export function Composer({
 }: {
   surface: Surface;
   model: ModelEntry;
+  availableModels: readonly ModelEntry[];
+  gatewayReady: boolean;
   generating: boolean;
   error: string | null;
   focusNonce: number;
@@ -94,7 +98,7 @@ export function Composer({
   const promptRef = useRef<HTMLTextAreaElement>(null);
   /* A run in flight is not a lock: it holds its own tile in the grid, so the
      only thing that can stop a press is having nothing to say. */
-  const disabled = prompt.text.trim().length === 0;
+  const disabled = prompt.text.trim().length === 0 || !gatewayReady;
 
   /* One batch control, two mechanisms. A model that declares its own
      results-per-request gets that setting written; the rest are submitted once
@@ -211,7 +215,11 @@ export function Composer({
   const attachLabel = tray.allFull ? "Change the inputs" : "Add an input";
   const settingKey = overlay?.startsWith(SETTING) ? overlay.slice(SETTING.length) : null;
   const generateLabel = batchValue > 1 ? `Generate ${batchValue} results` : "Generate";
-  const generateTip = disabled ? "Write a prompt first" : `${generateLabel} · ${shortcut ?? "⌘↵"}`;
+  const generateTip = !gatewayReady
+    ? "No Gateway model is available"
+    : disabled
+      ? "Write a prompt first"
+      : `${generateLabel} · ${shortcut ?? "⌘↵"}`;
 
   return (
     <div className="ohf-dock" ref={dockRef} data-selecting={selecting}>
@@ -261,6 +269,7 @@ export function Composer({
         )}
         {overlay === PICKER && (
           <ModelPicker
+            availableModels={availableModels}
             selectedId={model.id}
             surface={surface}
             onPick={(next) => {
@@ -333,6 +342,7 @@ export function Composer({
                   type="button"
                   className="ohf-ctl ohf-ctl--model ohf-tip"
                   data-tip="Change model"
+                  disabled={availableModels.length === 0}
                   aria-expanded={overlay === PICKER}
                   aria-haspopup="dialog"
                   onClick={(event) => toggle(PICKER, event.currentTarget)}
