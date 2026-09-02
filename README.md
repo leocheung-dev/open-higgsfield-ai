@@ -1,145 +1,174 @@
-# Open Higgsfield AI — Open-Source Alternative to Higgsfield AI
+# OpenHiggsfield AI — Open-Source Alternative to Higgsfield AI
 
-> **The free, open-source alternative to Higgsfield AI.** Generate AI images and cinematic shots using 20+ state-of-the-art models — without the closed ecosystem or subscription fees.
+> **The free, open-source alternative to Higgsfield AI.** Generate images and
+> videos with 40 models from one prompt bar — no closed ecosystem, no studio
+> subscription.
 
-Open Higgsfield AI is an open-source AI image and cinema studio that brings Higgsfield-style creative workflows to everyone. Powered by [Muapi.ai](https://muapi.ai), it supports models like Flux Schnell, Flux Dev, SDXL, Ideogram, Midjourney, and more — all from a sleek, modern interface you can self-host and customize.
+## 🌐 Try it Online — No Install Required
 
-**Why Open Higgsfield AI instead of Higgsfield AI?**
-- **Free & open-source** — no subscription, no vendor lock-in
-- **Self-hosted** — your data stays on your machine
-- **20+ models** — access more AI models than any single closed platform
-- **Extensible** — add your own models, modify the UI, build on top of it
+**Hosted version:** [openhiggsfield.ai](https://openhiggsfield.ai)
 
-For a deep dive into the technical architecture and the philosophy behind the "Infinite Budget" cinema workflow, see our [comprehensive guide and roadmap](https://medium.com/@anilmatcha/building-open-higgsfield-ai-an-open-source-ai-cinema-studio-83c1e0a2a5f1).
+Image and Video in one studio, in the browser — no Node.js or setup for the
+hosted build. This fork also supports a local CUA runtime backed by Pine Token
+Gateway.
 
-![Studio Demo](docs/assets/studio_demo.webp)
+---
 
-## ✨ Features
+**Why OpenHiggsfield AI instead of Higgsfield AI?**
 
-- **Cinema Studio** — Higgsfield AI-style interface for photorealistic cinematic shots with pro camera controls (Lens, Focal Length, Aperture)
-- **Multi-Model Support** — Switch between 20+ AI image generation models (Flux, Nano Banana, Ideogram, Midjourney, SDXL, and more)
-- **Smart Controls** — Dynamic aspect ratio and resolution pickers that adapt to each model's capabilities
-- **Generation History** — Browse, revisit, and download all your past generations (persisted in browser storage). Now with a persistent sidebar in Cinema Studio.
-- **Image Download** — One-click download of generated images in full resolution (up to 4K)
-- **API Key Management** — Secure API key storage in browser localStorage (never sent to any server except Muapi)
-- **Responsive Design** — Works seamlessly on desktop and mobile with dark glassmorphism UI
+- **Free & open-source** — no studio subscription, no vendor lock-in
+- **Self-hosted** — clone it, run it, change it
+- **Server-only key** — the CUA runtime reads its Gateway key from the environment
+- **40 models** — 12 image, 28 video, one catalog, one composer
 
-### 🎥 Cinema Studio Controls
+---
 
-The **Cinema Studio** offers precise control over the virtual camera, translating your choices into optimized prompt modifiers:
+Next.js 16 App Router on Vercel · React 19 · plain CSS · Zustand · pnpm
 
-| Category | Available Options |
-| :--- | :--- |
-| **Cameras** | Modular 8K Digital, Full-Frame Cine Digital, Grand Format 70mm Film, Studio Digital S35, Classic 16mm Film, Premium Large Format Digital |
-| **Lenses** | Creative Tilt, Compact Anamorphic, Extreme Macro, 70s Cinema Prime, Classic Anamorphic, Premium Modern Prime, Warm Cinema Prime, Swirl Bokeh Portrait, Vintage Prime, Halation Diffusion, Clinical Sharp Prime |
-| **Focal Lengths** | 8mm (Ultra-Wide), 14mm, 24mm, 35mm (Human Eye), 50mm (Portrait), 85mm (Tight Portrait) |
-| **Apertures** | f/1.4 (Shallow DoF), f/4 (Balanced), f/11 (Deep Focus) |
+---
 
-## 🚀 Quick Start
+## Features
 
-### Prerequisites
+### Generate
 
-- [Node.js](https://nodejs.org/) (v18+)
-- A [Muapi.ai](https://muapi.ai) API key
+- **One composer for Image and Video.** A single prompt bar drives both; the
+  model you pick decides image or video. `⌘/Ctrl + Enter` submits.
+- **40 models in the catalog** — 12 image, 28 video: Nano Banana 2 / Lite / Pro,
+  Soul 2, Soul Cinema, Gemini Omni Flash, Kling 3 (Turbo / Std / Pro / 4K /
+  Motion), Veo 3.1, Wan, Flux, GPT Image 2, Ideogram, Recraft, LTX, MiniMax,
+  PixVerse, Grok, Qwen and more. Searchable picker.
+- **Per-model settings.** Aspect ratio, resolution, duration, output format,
+  audio, batch size, prompt enhancement — each model declares its own allow-list
+  and the studio renders exactly that. No parallel hardcoded list.
+- **Media inputs by role.** Start frame, end frame, references, video and audio,
+  each with the per-role cap the model declares. In CUA mode, files stay in the
+  workspace under `uploads/`.
+- **Asset picker.** Attach from your uploads library or from any finished run in
+  history — two tabs over one library, filtered to the role's kind.
+- **Batch.** Up to 4 results per press. Models with a native count setting use it;
+  the rest are submitted once per result, each clearing its own tile.
+- **Live run lifecycle.** Skeletons open in the grid on submit, the request is
+  polled every 4s until a terminal status (10-minute deadline), and each finished
+  result blooms into place on its own clock.
 
-### Setup
+### Gallery
+
+- **Four scopes** — Image, Video, Assets (every finished run) and Favorites —
+  as an arrow-key-navigable tab rail.
+- **Masonry grid** of real runs at their true aspect ratio, newest first, with a
+  gradient placeholder while media loads.
+- **Per-tile actions**: reuse, favorite, delete, select.
+- **Reuse restores model, settings and prompt**, so the same run can be
+  re-rendered, not just re-typed.
+- **Viewer.** Full-size media with prompt (copy in one click), model, resolved
+  settings, timestamp, download, favorite and Recreate.
+- **Selection mode.** Click a tile's checkbox to enter; shift-click extends a
+  range. Bulk download (sequential, with progress and a report of any files the
+  CDN refused), bulk favorite/unfavorite, bulk delete. `Esc` exits.
+- **Undo.** Deletion is reversible for 6 seconds via a bar with a draining
+  hairline, in the strip the composer already reserves.
+- **Empty states** that hand you a starter prompt instead of a blank grid.
+
+### State and errors
+
+- **History persists** in IndexedDB in this browser (60 records). Favorites are
+  a deliberate keep and never age out of the cap. Result URLs belong to the
+  generation platform, so old history can outlive its CDN lifetime and show gaps.
+- **Failed, NSFW and canceled runs** are recorded as failed tiles carrying the
+  reason and a retry that restores the prompt and model.
+- **Server-only Gateway key.** CUA credentials are read from environment variables
+  and never returned to the browser. The topbar lamp states Gateway readiness
+  and whether a run is in flight.
+
+---
+
+## Architecture
+
+Each generate is one object: `{ model, prompt, media, settings }`.
+
+- **The UI builds that object** and hands it to a server action. The action
+  resolves it against the catalog and maps it to the generation API's own
+  fields (`image_urls`, `aspect_ratio`, …).
+- **Server actions are the only caller.** The browser never talks to the
+  generation API. The adapter uses OpenAI-compatible image/video endpoints and
+  sends `Authorization: Bearer <api_key>` only from the server.
+- **The catalog is the source of truth** (`src/generation/catalog/`). A new entry
+  appears in the picker, brings its own settings rail and media roles, and needs
+  no studio changes.
+- **Five small Zustand stores** — shared image/video prompt, shared image/video
+  media, `settings[modelId]`, and a tiny `active` store. No store per model.
+- **Uploads and generated results** are stored in local `uploads/` and `outputs/`
+  directories and served through same-origin routes.
+
+---
+
+## Getting started
 
 ```bash
-# Clone the repository
-git clone https://github.com/Anil-matcha/Open-Higgsfield-AI.git
-cd Open-Higgsfield-AI
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
+cp .env.example .env
+# fill in the server-only Gateway values
+./scripts/start-cua.sh
 ```
 
-Open `http://localhost:5173` in your browser. You'll be prompted to enter your Muapi API key on first use.
+The script installs pinned dependencies, builds the app, checks that the port is
+free, and binds the server to `127.0.0.1:3000` by default.
 
-### Production Build
+The regular `pnpm dev` and `pnpm start` commands are also loopback-only. This is
+a local CUA service with server-side billing credentials, not a public hosted
+application. Set `CUA_ALLOW_REMOTE=1` only when a separate trusted access layer
+protects the service.
+
+### Environment
 
 ```bash
-npm run build
-npm run preview
+OPENAI_API_KEY=pmk_xxx
+OPENAI_BASE_URL=https://your-token-gateway.example/v1
+OPENAI_MODEL=gpt-image-1
 ```
 
-## 🏗️ Architecture
+### Commands
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Dev server on port 3000 |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve the production build |
+| `pnpm brand` | Rebuild the icons and OG card in `public/` |
+| `./scripts/start-cua.sh` | Validate, build, and start the local CUA service |
+
+---
+
+## Layout
 
 ```
 src/
-├── components/
-│   ├── ImageStudio.js    # Standard studio with prompt, pickers, canvas, history
-│   ├── CinemaStudio.js   # Pro studio with camera controls & infinite canvas flow
-│   ├── CameraControls.js # Scrollable picker for camera/lens/focal/aperture
-│   ├── Header.js         # App header with settings and controls
-│   ├── AuthModal.js      # API key input modal
-│   ├── SettingsModal.js   # Settings panel for API key management
-│   └── Sidebar.js        # Navigation sidebar
-├── lib/
-│   ├── muapi.js          # API client (submit + poll pattern, x-api-key auth)
-│   └── models.js         # Model definitions with endpoint mappings
-├── styles/
-│   ├── global.css        # Global styles and animations
-│   ├── studio.css        # Studio-specific styles
-│   └── variables.css     # CSS custom properties
-├── main.js               # App entry point
-└── style.css             # Tailwind imports
+  app/          /  is the full-viewport studio and the only page
+                /api/cua stores and serves local media
+                base.css owns the document canvas
+  generation/   generate requests, server actions, API mapping, catalog, stores
+  openhiggsfield/
+                the studio surface: composer, gallery, viewer, model picker,
+                settings, asset picker, selection bar — and openhiggsfield.css
 ```
 
-## 🔌 API Integration
-
-The app communicates with [Muapi.ai](https://muapi.ai) using a two-step pattern:
-
-1. **Submit** — `POST /api/v1/{model-endpoint}` with prompt and parameters
-2. **Poll** — `GET /api/v1/predictions/{request_id}/result` until status is `completed`
-
-Authentication uses the `x-api-key` header. During development, a Vite proxy handles CORS by routing `/api` requests to `https://api.muapi.ai`.
-
-## 🎨 Supported Models
-
-| Model | Endpoint | Resolution Options |
-|-------|----------|-------------------|
-| Nano Banana | `nano-banana` | — |
-| Nano Banana Pro | `nano-banana-pro` | **up to 4K** (Cinema Studio) |
-| Flux Schnell | `flux-schnell-image` | — |
-| Flux Dev | `flux-dev-image` | — |
-| Flux Dev LoRA | `flux-dev-lora` | — |
-| Ideogram V2 | `ideogram-v2` | — |
-| SDXL | `sdxl` | — |
-| And 15+ more... | | |
-
-## 🛠️ Tech Stack
-
-- **Vite** — Build tool & dev server
-- **Tailwind CSS v4** — Utility-first styling
-- **Vanilla JS** — No framework, pure DOM manipulation
-- **Muapi.ai** — AI model API gateway
-
-## 🤔 How is this different from Higgsfield AI?
-
-Higgsfield AI is a proprietary AI video and image generation platform. **Open Higgsfield AI** is a community-driven, open-source alternative that provides similar creative capabilities without the closed ecosystem:
-
-| | Higgsfield AI | Open Higgsfield AI |
-| :--- | :--- | :--- |
-| **Cost** | Subscription-based | Free (open-source) |
-| **Models** | Proprietary | 20+ open & commercial models |
-| **Self-hosting** | No | Yes |
-| **Customizable** | No | Fully hackable |
-| **Data privacy** | Cloud-based | Your data stays local |
-| **Source code** | Closed | MIT licensed |
-
-## 📄 License
-
-MIT
-
-## 🙏 Credits
-
-Built with [Muapi.ai](https://muapi.ai) — the unified API for AI image generation models.
-
 ---
-**Deep Dive**: For more details on the "AI Influencer" engine, upcoming "Popcorn" storyboarding features, and the future of this project, read the [full technical overview](https://medium.com/@anilmatcha/building-open-higgsfield-ai-an-open-source-ai-cinema-studio-83c1e0a2a5f1).
 
----
-*Looking for a free Higgsfield AI alternative? Open Higgsfield AI is an open-source AI image generation studio and Higgsfield AI replacement that you can self-host, customize, and extend.*
+## Design principles
+
+Dark studio ground, a single lime accent `#d1fe17`, Inter throughout. The chrome
+stays neutral so the generated work is the only color on the surface.
+
+1. **The tool disappears into the task** — expression never obscures state or
+   affordance.
+2. **Accent is state, not decoration** — selection, primary action, liveness only.
+3. **Data is data** — settings, counts and durations read in tabular numerals.
+   One typeface throughout; no monospace anywhere.
+4. **Motion conveys state** — the generation lifecycle, the arrival of a run.
+   Nothing loops decoratively.
+5. **Every control ships all its states** — hover, focus, active, disabled,
+   loading, error, empty.
+6. **The catalog is the source of truth** — the studio renders what the model
+   declares, never a parallel hardcoded list.
+
+The model catalog and its per-model parameter definitions remain the upstream
+source of truth; the CUA adaptation does not replace or simplify those controls.
