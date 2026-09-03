@@ -49,7 +49,9 @@ Next.js 16 App Router on Vercel · React 19 · plain CSS · Zustand · pnpm
 - **Batch.** Up to 4 results per press. Models with a native count setting use it;
   the rest are submitted once per result, each clearing its own tile.
 - **Live run lifecycle.** Skeletons open in the grid on submit, the request is
-  polled every 4s until a terminal status (10-minute deadline), and each finished
+  polled every 4s until a terminal status (10-minute image / 30-minute video
+  browser deadline by default; set `NEXT_PUBLIC_CUA_IMAGE_POLL_DEADLINE_MS` or
+  `NEXT_PUBLIC_CUA_VIDEO_POLL_DEADLINE_MS` to tune those local windows), and each finished
   result blooms into place on its own clock.
 
 ### Gallery

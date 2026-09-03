@@ -122,6 +122,8 @@ export function createPlatformClient(options: PlatformClientOptions) {
     let payload: unknown;
     if (meta.surface === "image" && actualModel.startsWith("gpt-image") && refs.length > 0) {
       payload = await send("POST", "/images/edits", await gptEditForm(actualModel, input, refs));
+    } else if (meta.surface === "image" && isGeminiImageModel(actualModel)) {
+      payload = await send("POST", "/chat/completions", await geminiImageBody(actualModel, input, refs));
     } else {
       const pathname =
         meta.surface === "image"
@@ -242,6 +244,30 @@ export function createPlatformClient(options: PlatformClientOptions) {
     }
     return body;
   }
+
+  async function geminiImageBody(
+    model: string,
+    input: Record<string, unknown>,
+    refs: string[],
+  ): Promise<Record<string, unknown>> {
+    const prompt = requiredPrompt(input);
+    if (refs.length === 0) {
+      return { model, messages: [{ role: "user", content: prompt }], stream: false };
+    }
+
+    const content: Array<Record<string, unknown>> = [{ type: "text", text: prompt }];
+    for (const url of refs) {
+      const local = await localMediaData(url);
+      if (!local || !local.mimeType.startsWith("image/")) {
+        throw new PlatformError(400, { detail: "A reference image is unavailable" });
+      }
+      content.push({
+        type: "image_url",
+        image_url: { url: `data:${local.mimeType};base64,${local.bytes.toString("base64")}` },
+      });
+    }
+    return { model, messages: [{ role: "user", content }], stream: false };
+  }
 }
 
 function gptImageBody(model: string, input: Record<string, unknown>): Record<string, unknown> {
@@ -299,14 +325,54 @@ function mediaCandidates(data: Record<string, unknown>, surface: Surface): Media
   if (data.video !== undefined) values.push(data.video);
   if (typeof data.url === "string" || typeof data.b64_json === "string") values.push(data);
 
+  if (surface === "image" && Array.isArray(data.choices)) {
+    for (const choiceValue of data.choices) {
+      const message = asRecord(asRecord(choiceValue).message);
+      values.push(...assistantContentValues(message.content));
+      if (Array.isArray(message.images)) values.push(...message.images);
+    }
+  }
+
   return values.flatMap((value): MediaCandidate[] => {
-    if (typeof value === "string") return [{ url: value }];
+    if (typeof value === "string") {
+      const inline = inlineImageCandidates(value);
+      return inline.length > 0 ? inline : [{ url: value }];
+    }
     const item = asRecord(value);
-    const url = stringField(item, "url") ?? stringField(item, "download_url");
+    const imageURL = asRecord(item.image_url);
+    const inlineData = asRecord(item.inline_data);
+    const url =
+      stringField(item, "url") ??
+      stringField(item, "download_url") ??
+      stringField(imageURL, "url");
     const base64 = stringField(item, "b64_json") ?? stringField(item, "base64");
-    if (!url && !base64) return [];
-    return [{ url, base64, mimeType: stringField(item, "mime_type") ?? defaultMime(surface) }];
+    const inlineBase64 = stringField(inlineData, "data");
+    const inlineURL = url ? inlineImageCandidates(url) : [];
+    if (inlineURL.length > 0) return inlineURL;
+    if (!url && !base64 && !inlineBase64) return [];
+    return [{
+      url,
+      base64: base64 ?? inlineBase64,
+      mimeType:
+        stringField(item, "mime_type") ??
+        stringField(inlineData, "mime_type") ??
+        defaultMime(surface),
+    }];
   });
+}
+
+function assistantContentValues(content: unknown): unknown[] {
+  if (typeof content === "string") return [content];
+  return Array.isArray(content) ? content : [];
+}
+
+function inlineImageCandidates(value: string): MediaCandidate[] {
+  const matches = value.matchAll(/data:(image\/(?:png|jpeg|webp|gif));base64,([a-z0-9+/=]+)/gi);
+  return [...matches].map((match) => ({ mimeType: match[1]!.toLowerCase(), base64: match[2]! }));
+}
+
+function isGeminiImageModel(model: string): boolean {
+  return /^gemini-[a-z0-9.-]*image(?:-[a-z0-9.-]+)?$/i.test(model);
 }
 
 async function saveCandidate(
@@ -509,9 +575,11 @@ function defaultMime(surface: Surface): string {
   return surface === "video" ? "video/mp4" : "image/png";
 }
 
-function messageFromBody(status: number, body: unknown): string {
+export function messageFromBody(status: number, body: unknown): string {
   if (status === 401 || status === 403) return "Gateway authentication failed";
-  if (status === 402) return "Gateway quota or balance is insufficient";
+  if (status === 402) {
+    return "Pine Credits are unavailable for this generation. Add Credits or wait for settlement recovery.";
+  }
   if (status === 429) return "Gateway rate limit reached; wait and retry";
   if (status >= 500) return "The upstream generation service is unavailable";
   const data = asRecord(body);

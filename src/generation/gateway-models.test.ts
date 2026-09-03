@@ -27,19 +27,24 @@ test("parses and deduplicates OpenAI-compatible model lists", () => {
 test("filters the local catalog and resolves aliases in preference order", () => {
   const catalog = [
     model("gpt-image-2", ["gpt-image-2", "gpt-image-1"]),
+    model("nano-banana-2", ["gemini-3.1-flash-image", "gemini-2.5-flash-image"]),
     model("kling-3"),
     model("unavailable"),
   ];
   assert.deepEqual(
-    availableCatalogModels(catalog, ["gpt-image-1", "kling-3"]).map((entry) => entry.id),
-    ["gpt-image-2", "kling-3"],
+    availableCatalogModels(catalog, ["gpt-image-1", "gemini-2.5-flash-image", "kling-3"]).map((entry) => entry.id),
+    ["gpt-image-2", "nano-banana-2", "kling-3"],
   );
   assert.equal(resolveGatewayModelId(catalog[0]!, ["gpt-image-1"]), "gpt-image-1");
   assert.equal(
     resolveGatewayModelId(catalog[0]!, ["gpt-image-1", "gpt-image-2"]),
     "gpt-image-2",
   );
-  assert.equal(resolveGatewayModelId(catalog[2]!, ["gpt-image-1"]), undefined);
+  assert.equal(resolveGatewayModelId(catalog[3]!, ["gpt-image-1"]), undefined);
+  assert.equal(
+    resolveGatewayModelId(catalog[1]!, ["gemini-2.5-flash-image"]),
+    "gemini-2.5-flash-image",
+  );
 });
 
 test("discovers models server-side with the Gateway bearer credential", async () => {

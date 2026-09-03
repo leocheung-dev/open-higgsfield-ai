@@ -1,11 +1,14 @@
 import { getGenerationStatuses } from "./actions";
+import type { Surface } from "./catalog";
 import type { GenerationStatus, StatusResult } from "./platform";
 
 /** Statuses the platform never moves off again. */
 const TERMINAL = new Set(["completed", "failed", "nsfw", "canceled"]);
 
 export const POLL_INTERVAL_MS = 4000;
-export const POLL_DEADLINE_MS = 10 * 60_000;
+export const IMAGE_POLL_DEADLINE_MS = 10 * 60_000;
+export const VIDEO_POLL_DEADLINE_MS = 30 * 60_000;
+const MIN_POLL_DEADLINE_MS = 30_000;
 /** Rounds allowed to fail back to back before the watches are given up on. One
     dropped round must not end every generation in flight. */
 const MAX_MISSES = 3;
@@ -15,6 +18,35 @@ type Waiter = {
   resolve: (status: GenerationStatus) => void;
   reject: (reason: Error) => void;
 };
+
+export class BrowserPollDeadlineError extends Error {
+  constructor() {
+    super("Local polling window elapsed; the remote generation may still be running");
+    this.name = "BrowserPollDeadlineError";
+  }
+}
+
+export function isBrowserPollDeadlineError(value: unknown): value is BrowserPollDeadlineError {
+  return value instanceof BrowserPollDeadlineError;
+}
+
+/** Browser-side polling is deliberately bounded without imposing a provider
+    cancellation. Videos take longer by default, and both windows may be
+    adjusted at build time with public Studio-only environment variables. */
+export function pollDeadlineFor(surface: Surface, configured?: string | undefined): number {
+  const fallback = surface === "video" ? VIDEO_POLL_DEADLINE_MS : IMAGE_POLL_DEADLINE_MS;
+  const value = Number(configured);
+  return Number.isFinite(value) && value >= MIN_POLL_DEADLINE_MS ? value : fallback;
+}
+
+function configuredDeadline(surface: Surface): number {
+  return pollDeadlineFor(
+    surface,
+    surface === "video"
+      ? process.env.NEXT_PUBLIC_CUA_VIDEO_POLL_DEADLINE_MS
+      : process.env.NEXT_PUBLIC_CUA_IMAGE_POLL_DEADLINE_MS,
+  );
+}
 
 const waiting = new Map<string, Waiter>();
 const inflight = new Map<string, Promise<GenerationStatus>>();
@@ -29,13 +61,13 @@ let misses = 0;
     stall again — with the lock gone and the queue doing the same work. */
 export function watchRequest(
   requestId: string,
-  opts?: { deadline?: number },
+  opts?: { deadline?: number; surface?: Surface },
 ): Promise<GenerationStatus> {
   const existing = inflight.get(requestId);
   if (existing) return existing;
   const promise = new Promise<GenerationStatus>((resolve, reject) => {
     waiting.set(requestId, {
-      deadline: opts?.deadline ?? Date.now() + POLL_DEADLINE_MS,
+      deadline: opts?.deadline ?? Date.now() + configuredDeadline(opts?.surface ?? "image"),
       resolve: (status) => {
         inflight.delete(requestId);
         resolve(status);
@@ -98,13 +130,14 @@ function deliver(result: StatusResult): void {
 }
 
 /* A run the platform never finishes would otherwise hold its skeleton open for
-   the rest of the session. */
+   the rest of the browser session. This is a local waiting limit only: the
+   persisted request id remains available for the next reload to resume. */
 function sweep(): void {
   const now = Date.now();
   for (const [requestId, waiter] of [...waiting]) {
     if (now <= waiter.deadline) continue;
     waiting.delete(requestId);
-    waiter.reject(new Error("timed out waiting for the platform"));
+    waiter.reject(new BrowserPollDeadlineError());
   }
 }
 

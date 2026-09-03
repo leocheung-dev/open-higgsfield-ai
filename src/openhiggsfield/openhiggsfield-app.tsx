@@ -8,7 +8,11 @@ import { MODELS, getModel } from "@/generation/catalog";
 import type { Surface } from "@/generation/catalog";
 import { assemblePlane } from "@/generation/plane";
 import type { GenerationStatus } from "@/generation/platform";
-import { POLL_DEADLINE_MS, stopWatching, watchRequest } from "@/generation/poll";
+import {
+  isBrowserPollDeadlineError,
+  stopWatching,
+  watchRequest,
+} from "@/generation/poll";
 import { useActive } from "@/generation/stores/active";
 import { useImagePrompt, useVideoPrompt } from "@/generation/stores/prompt";
 import { useSettings } from "@/generation/stores/settings";
@@ -277,7 +281,7 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
     async (requestId: string, draft: RunDraft, expected: number) => {
       try {
         const status = await watchRequest(requestId, {
-          deadline: draft.createdAt + POLL_DEADLINE_MS,
+          surface: draft.surface,
         });
         if (!alive.current) return;
         const records = terminalRows(requestId, draft, status);
@@ -296,6 +300,17 @@ export function OpenHiggsfieldApp({ fontClassName = "" }: { fontClassName?: stri
         }
       } catch (caught) {
         if (!alive.current) return;
+        if (isBrowserPollDeadlineError(caught)) {
+          /* This is a browser-only waiting limit, not a provider terminal
+             state. Keep the stored request id and running rows so a reload
+             can resume the same remote request without submitting again. */
+          setError(
+            (prev) =>
+              prev ??
+              "This generation is still processing remotely. Reload Studio later to resume checking it.",
+          );
+          return;
+        }
         const message = describeError(caught);
         setHistory((prev) => {
           const next = replaceRequest(prev, requestId, failedRows(requestId, expected, draft, message));

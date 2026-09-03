@@ -3,6 +3,7 @@ import { BANANA_ASPECT } from "./tokens";
 
 export const nanoBanana2: ModelEntry = {
   id: "nano-banana-2",
+  gatewayIds: ["gemini-3.1-flash-image", "gemini-2.5-flash-image"],
   surface: "image",
   label: "Nano Banana 2",
   roles: { reference: 14 },
